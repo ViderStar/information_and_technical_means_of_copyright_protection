@@ -1,122 +1,60 @@
-# Информационные и технические средства защиты авторских прав
+# Information and Technical Means of Copyright Protection
 
-## О дисциплине
+**English** · [Русский](README.ru.md)
 
-Курс посвящён методам защиты информации и объектов авторского права: от классических
-шифров до криптосистем с открытым ключом, цифровой подписи, стеганографии и
-физически неклонируемых функций.
+Lab works for the BSUIR course on information security and copyright protection, from
+classical ciphers to public-key cryptography, digital signatures, steganography and
+physical unclonable functions.
 
-### Основные темы
+**Course author:** Prof. Vyacheslav N. Yarmolik, Dr. Sc. (Eng.) —
+[BSUIR personal page](https://www.bsuir.by/ru/kaf-poit/yarmolik-v-n)
 
-| Раздел | Что изучается |
-|---|---|
-| **Простейшие шифры** | Методы перестановок и подстановок, частотный криптоанализ |
-| **Криптосистемы с открытым ключом** | RSA, Эль-Гамаль, Рабин |
-| **Электронная цифровая подпись** | Хеш-функции (SHA), RSA-подпись, DSA |
-| **Доказательство с нулевым знанием** | Фиат — Шамир, Гиллу — Кискатр, Шнорр |
-| **Стеганография** | Цифровые водяные знаки, LSB, метод Patchwork |
+## Lab 1: transposition and substitution ciphers
 
----
+- **Transposition:** rail fence, columnar (single and double), turning grille.
+- **Substitution:** Caesar and affine, Playfair, Vigenere (direct, progressive, autokey).
 
-## Лабораторные работы
+All eight reference examples from the lab manual are reproduced symbol by symbol.
+The report ([PDF](report/main.pdf), [source](report/main.tex)), the essay on zero-knowledge
+proofs ([PDF](referat/main.pdf)) and the [theory notes](labs_info/lab1_theory.md) are in Russian.
 
-### 🔐 [ЛР №1: Шифрование методами перестановок и подстановок](labs_info/lab1_theory.md)
+## Quick start
 
-**Тема**: классические шифры — перестановка меняет позиции символов, подстановка сами символы
-
-**Перестановки** ([lab1/](lab1)): железнодорожная изгородь, столбцовый метод с
-числовым ключом из ключевого слова, двойная перестановка, поворачивающаяся решётка Кардано.
-
-**Подстановки** (все три варианта задания): Цезарь и аффинное преобразование (№1),
-биграммный Плейфейр (№2), Виженер с прямым, прогрессивным и самогенерирующимся
-ключом (№3).
-
-📄 Отчёт: [report/main.pdf](report/main.pdf) (исходник [report/main.tex](report/main.tex)),
-теория и разбор реализации — [labs_info/lab1_theory.md](labs_info/lab1_theory.md)
-
----
-
-## Реферат
-
-### 📝 [Доказательство с нулевым знанием](referat/main.pdf)
-
-От определения Голдвассер — Микали — Ракоффа и классических протоколов идентификации
-(Фиата — Шамира, Гиллу — Кискатра, Шнорра) до преобразования Фиата — Шамира,
-zk-SNARK/zk-STARK/Bulletproofs и их применения: приватные платежи, zk-rollups,
-анонимная аутентификация, подтверждение владения произведением без его раскрытия.
-
-Исходник: [referat/main.tex](referat/main.tex)
-
----
-
-## Быстрый старт
+Python 3.9+, standard library only.
 
 ```bash
-python3 main.py gui     # окно приложения: выбор шифра, параметры, разбор
+python3 main.py gui     # window: pick a cipher, set parameters, see how it works
+python3 main.py demo    # run all manual examples with verification
 ```
 
-```bash
-python3 main.py demo    # прогон всех примеров из методички с проверкой
-```
-
-В окне выбирается один шифр из списка, его параметры настраиваются рядом (высота
-изгороди, ключевые слова, схема ключа Виженера, отверстия решётки — кликом по клетке),
-а панель «Как это работает» показывает промежуточное представление: зигзаг, таблицу
-столбцов с номерами, разметку орбит решётки, шифрующую таблицу Плейфейра или
-последовательность ключа Виженера под текстом.
-
-Перестановки:
+The window opens in English; the language selector in the top bar switches to Russian.
 
 ```bash
-python3 main.py fence  enc -k 4 -t "Это лабораторная работа по КиОКИ"
-python3 main.py column enc -k КРИПТОГРАФИЯ -t "Это лабораторная работа по КиОКИ"
-python3 main.py column enc -k КРИПТОГРАФИЯ -d ШИФРОВАНИЕ -t "Это лабораторная работа по КиОКИ"
-python3 main.py grille enc -k 0,7,10,13 -t "ШИФРОТЕКСТ"
-```
-
-Подстановки:
-
-```bash
-python3 main.py caesar   enc -k 3 -t "Это лабораторная работа по КиОКИ"
-python3 main.py caesar   enc -k 5 -m 3 -t "Cryptography"            # аффинный шифр
+python3 main.py fence    enc -k 4 -t "Это лабораторная работа по КиОКИ"
+python3 main.py column   enc -k КРИПТОГРАФИЯ -d ШИФРОВАНИЕ -t "Это лабораторная работа по КиОКИ"
+python3 main.py grille   enc -k 0,7,10,13 -t "ШИФРОТЕКСТ"
+python3 main.py caesar   enc -k 5 -m 3 -t "Cryptography"
 python3 main.py playfair enc -k CRYPTOGRAPHY -t "ciphertext"
 python3 main.py vigenere enc -k MODE -s progressive -t "Cryptography"
 ```
 
-Режим `dec` выполняет обратное преобразование с тем же ключом, `--raw` отключает вывод
-группами по 5 символов, текст можно подать через stdin:
+`dec` reverses the transform with the same key, `--raw` turns off 5-symbol grouping,
+and text can be piped through stdin.
+
+## Layout
+
+```
+main.py       CLI for all labs
+configs/      default keys and settings (overridable via environment variables)
+helpers/      text normalization, keyword to numeric key, alphabet detection
+lab1/         the ciphers and the demo runner
+gui/          tkinter window (methods.py: cipher registry, i18n.py: translations)
+report/       Lab 1 report (LaTeX + PDF)
+referat/      essay (LaTeX + PDF)
+```
+
+## Building the PDFs
 
 ```bash
-echo "ШВСОТТГИАЕФДЕРКБ" | python3 main.py grille dec
+cd report && tectonic main.tex    # or: latexmk -pdf main.tex
 ```
-
-Зависимостей нет — только стандартная библиотека Python 3.9+ (`python3 --version`
-на этой машине — 3.14, команды `python` в PATH нет).
-
-## Структура репозитория
-
-```
-main.py              CLI всех лабораторных работ
-configs/cfg.py       ключи и параметры по умолчанию (переопределяются через env)
-helpers/             нормализация текста, числовой ключ из слова, выбор алфавита
-lab1/                шифры перестановок и подстановок + demo-прогон
-gui/                 окно на tkinter: methods.py — описание шифров, app.py — виджеты
-labs_info/           теория и разбор реализации (markdown)
-preamble.tex         общее оформление LaTeX по СТП БГУИР 01-2024
-report/              отчёт по ЛР1 + собранный PDF
-referat/             реферат + собранный PDF
-info_from_courator_2026/  материалы преподавателя
-```
-
-## Сборка отчётов
-
-```bash
-cd report && tectonic main.tex      # или latexmk -pdf main.tex
-```
-
-```bash
-cd referat && tectonic main.tex
-```
-
-Шрифт подбирается по движку: под `pdflatex` — `tempora` + T2A (как в отчётах по другим
-дисциплинам), под `xelatex`/`tectonic` — системный Times New Roman.
