@@ -1,4 +1,4 @@
-"""CLI лабораторных работ по ИТСЗАП."""
+"""CLI for the ITMCP lab works."""
 
 from __future__ import annotations
 
@@ -17,56 +17,56 @@ from lab1.runner import run_lab1
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="main.py",
-        description="ЛР1: шифрование методами перестановок и подстановок.")
+        description="Lab 1: transposition and substitution ciphers.")
     methods = parser.add_subparsers(dest="method", required=True)
 
-    fence_cmd = methods.add_parser("fence", help="железнодорожная изгородь")
+    fence_cmd = methods.add_parser("fence", help="rail fence")
     fence_cmd.add_argument("mode", choices=("enc", "dec"))
     fence_cmd.add_argument("-k", "--key", type=int, default=FENCE_KEY,
-                           help="высота изгороди (по умолчанию %(default)s)")
+                           help="fence height (default: %(default)s)")
 
-    column_cmd = methods.add_parser("column", help="столбцовый метод")
+    column_cmd = methods.add_parser("column", help="columnar transposition")
     column_cmd.add_argument("mode", choices=("enc", "dec"))
     column_cmd.add_argument("-k", "--key", default=COLUMN_KEY,
-                            help="ключевое слово (по умолчанию %(default)s)")
+                            help="keyword (default: %(default)s)")
     column_cmd.add_argument("-d", "--key2", nargs="?", const=COLUMN_KEY2,
-                            help="второй ключ — двойная перестановка")
+                            help="second key: double transposition")
 
-    grille_cmd = methods.add_parser("grille", help="поворачивающаяся решётка")
+    grille_cmd = methods.add_parser("grille", help="turning grille")
     grille_cmd.add_argument("mode", choices=("enc", "dec"))
     grille_cmd.add_argument("-k", "--key", default=GRILLE_KEY,
-                            help="номера отверстий через запятую "
-                                 "(по умолчанию %(default)s)")
+                            help="comma-separated hole numbers "
+                                 "(default: %(default)s)")
 
-    caesar_cmd = methods.add_parser("caesar", help="шифр Цезаря (вариант №1)")
+    caesar_cmd = methods.add_parser("caesar", help="Caesar cipher (variant 1)")
     caesar_cmd.add_argument("mode", choices=("enc", "dec"))
     caesar_cmd.add_argument("-k", "--key", type=int, default=CAESAR_KEY,
-                            help="сдвиг k2 (по умолчанию %(default)s)")
+                            help="shift k2 (default: %(default)s)")
     caesar_cmd.add_argument("-m", "--mul", type=int, default=CAESAR_MUL,
-                            help="множитель k1 — аффинное преобразование "
-                                 "(по умолчанию %(default)s)")
+                            help="multiplier k1: affine transformation "
+                                 "(default: %(default)s)")
 
-    playfair_cmd = methods.add_parser("playfair", help="шифр Плейфейра (вариант №2)")
+    playfair_cmd = methods.add_parser("playfair", help="Playfair cipher (variant 2)")
     playfair_cmd.add_argument("mode", choices=("enc", "dec"))
     playfair_cmd.add_argument("-k", "--key", default=PLAYFAIR_KEY,
-                              help="ключевое слово таблицы (по умолчанию %(default)s)")
+                              help="table keyword (default: %(default)s)")
 
-    vigenere_cmd = methods.add_parser("vigenere", help="шифр Виженера (вариант №3)")
+    vigenere_cmd = methods.add_parser("vigenere", help="Vigenere cipher (variant 3)")
     vigenere_cmd.add_argument("mode", choices=("enc", "dec"))
     vigenere_cmd.add_argument("-k", "--key", default=VIGENERE_KEY,
-                              help="ключевое слово (по умолчанию %(default)s)")
+                              help="keyword (default: %(default)s)")
     vigenere_cmd.add_argument("-s", "--scheme", choices=vigenere.MODES,
                               default=VIGENERE_MODE,
-                              help="схема применения ключа (по умолчанию %(default)s)")
+                              help="key scheme (default: %(default)s)")
 
-    methods.add_parser("demo", help="прогон примеров из методички")
-    methods.add_parser("gui", help="графический интерфейс (tkinter)")
+    methods.add_parser("demo", help="run the examples from the lab manual")
+    methods.add_parser("gui", help="graphical interface (tkinter)")
 
     for command in (fence_cmd, column_cmd, grille_cmd,
                     caesar_cmd, playfair_cmd, vigenere_cmd):
-        command.add_argument("-t", "--text", help="текст (иначе читается stdin)")
+        command.add_argument("-t", "--text", help="text (read from stdin if omitted)")
         command.add_argument("--raw", action="store_true",
-                             help=f"не разбивать вывод на группы по {GROUP_SIZE} символов")
+                             help=f"do not split the output into groups of {GROUP_SIZE} symbols")
 
     return parser
 
@@ -75,7 +75,7 @@ def read_text(args: argparse.Namespace) -> str:
     text = args.text if args.text is not None else sys.stdin.read()
     result = normalize(text)
     if not result:
-        raise SystemExit("Пустой текст: нечего шифровать")
+        raise SystemExit("Empty text: nothing to process")
     return result
 
 
@@ -88,7 +88,7 @@ def main() -> None:
         return
 
     if args.method == "gui":
-        from gui import run          # tkinter импортируется только при запуске окна
+        from gui import run          # tkinter is imported only when the window starts
         run()
         return
 
@@ -96,8 +96,8 @@ def main() -> None:
 
     try:
         result = encipher(args, text)
-    except ValueError as error:      # некорректный ключ — сообщение без трассировки
-        raise SystemExit(f"Ошибка: {error}")
+    except ValueError as error:      # invalid key: print the message without a traceback
+        raise SystemExit(f"Error: {error}")
 
     print(result if args.raw else group(result))
 
