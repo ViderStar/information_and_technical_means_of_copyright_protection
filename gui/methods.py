@@ -1,7 +1,9 @@
-"""Описание шифров для GUI: параметры, вызовы и разбор «как это работает».
+"""Cipher descriptions for the GUI: parameters, calls and the "how it works" view.
 
-Чтобы добавить в приложение новый шифр, достаточно дописать одну запись в METHODS:
-виджеты параметров строятся по описанию автоматически.
+To add a cipher to the application, add one entry to METHODS and its strings to
+gui/i18n.py: the parameter widgets are built from the description automatically.
+Names, titles, labels and hints are looked up in i18n by key:
+method.<id>.name, method.<id>.title, param.<id>.<key>[.hint].
 """
 
 from dataclasses import dataclass, field
@@ -9,6 +11,7 @@ from typing import Any, Callable, Dict, List, Sequence
 
 from helpers.alphabet import detect
 from helpers.keyword import key_numbers, read_order
+from gui.i18n import t
 from helpers.text import group
 from lab1 import caesar, columnar, fence, grille, playfair, vigenere
 
@@ -17,22 +20,20 @@ Values = Dict[str, Any]
 
 @dataclass
 class Param:
-    """Один настраиваемый параметр шифра."""
+    """One configurable cipher parameter."""
 
     key: str
-    label: str
     kind: str                      # int | text | choice | grille
     default: Any = ""
     choices: Sequence[Any] = ()
     limits: tuple = (0, 99)
-    hint: str = ""
+    hint: bool = False             # whether i18n has a param.<id>.<key>.hint string
 
 
 @dataclass
 class Method:
-    """Шифр: параметры, прямое и обратное преобразование, разбор."""
+    """A cipher: parameters, forward and inverse transforms, explanation."""
 
-    title: str
     params: List[Param]
     encrypt: Callable[[str, Values], str]
     decrypt: Callable[[str, Values], str]
@@ -40,13 +41,13 @@ class Method:
 
 
 # --------------------------------------------------------------------------
-# Разбор: показывает промежуточное представление, а не только результат
+# Explanations: show the intermediate representation, not just the result
 # --------------------------------------------------------------------------
 
 def _explain_fence(text: str, values: Values) -> str:
     key = values["key"]
     rows = fence.row_pattern(len(text), key)
-    lines = ["Зигзаг по %d строкам (шифротекст читается построчно):" % key, ""]
+    lines = [t("explain.fence.header", rows=key), ""]
     for row in range(key):
         lines.append("".join(ch if r == row else "·" for ch, r in zip(text, rows)))
     return "\n".join(lines)
@@ -59,39 +60,39 @@ def _table_rows(text: str, width: int) -> List[str]:
 def _explain_column(text: str, values: Values) -> str:
     keyword = values["keyword"]
     numbers = key_numbers(keyword)
-    lines = ["Ключ %s -> номера столбцов %s" % (keyword, " ".join(map(str, numbers))),
-             "", "Таблица (текст записан построчно, читается по столбцам):", "",
+    lines = [t("explain.column.key", keyword=keyword, numbers=" ".join(map(str, numbers))),
+             "", t("explain.column.table"), "",
              " ".join(f"{n:>2}" for n in numbers)]
     lines += [" ".join(f"{ch:>2}" for ch in row) for row in _table_rows(text, len(numbers))]
 
     order = read_order(keyword)
     columns = ["".join(text[i] for i in range(c, len(text), len(numbers))) for c in range(len(numbers))]
-    lines += ["", "Порядок чтения: " + " | ".join(columns[c] for c in order)]
+    lines += ["", t("explain.column.order") + " | ".join(columns[c] for c in order)]
 
     if values.get("keyword2"):
         first = columnar.encrypt(text, keyword)
-        lines += ["", "Второй проход, ключ %s -> %s" % (
-            values["keyword2"], " ".join(map(str, key_numbers(values["keyword2"])))),
-            "Вход второго прохода: " + group(first)]
+        lines += ["", t("explain.column.second", keyword=values["keyword2"],
+                        numbers=" ".join(map(str, key_numbers(values["keyword2"])))),
+                  t("explain.column.second_input") + group(first)]
     return "\n".join(lines)
 
 
 def _explain_grille(text: str, values: Values) -> str:
     holes, size = grille.parse_key(values["holes"])
     orbits = grille.orbit_map(size)
-    lines = ["Разметка орбит поворота (одинаковые номера — одна орбита):", ""]
+    lines = [t("explain.grille.orbits"), ""]
     for row in range(size):
         lines.append(" ".join(str(orbits[(row, col)] + 1) for col in range(size)))
 
     order = grille.fill_order(holes, size)
-    lines += ["", "Порядок заполнения по четырём поворотам:"]
+    lines += ["", t("explain.grille.order")]
     for step in range(4):
         cells = order[step * len(holes):(step + 1) * len(holes)]
         lines.append("  %3d°: %s" % (step * 90,
                                      " ".join(f"({i // size},{i % size})" for i in cells)))
 
     cipher = grille.encrypt(text, holes, size)
-    lines += ["", "Заполненная матрица (читается построчно):", ""]
+    lines += ["", t("explain.grille.matrix"), ""]
     for start in range(0, len(cipher), size * size):
         block = cipher[start:start + size * size]
         lines += [" ".join(block[r * size:(r + 1) * size]) for r in range(size)] + [""]
@@ -103,8 +104,9 @@ def _explain_caesar(text: str, values: Values) -> str:
     n, k1, k2 = len(alphabet), values["mul"], values["key"]
     shifted = "".join(alphabet[(i * k1 + k2) % n] for i in range(n))
     return "\n".join([
-        f"Алфавит из {n} букв, E(i) = (i * {k1} + {k2}) mod {n}",
-        "", "исходный:  " + " ".join(alphabet), "заменяется:" + " " + " ".join(shifted),
+        t("explain.caesar.header", n=n, k1=k1, k2=k2),
+        "", t("explain.caesar.source") + " ".join(alphabet),
+        t("explain.caesar.mapped") + " ".join(shifted),
     ])
 
 
@@ -114,41 +116,38 @@ def _explain_playfair(text: str, values: Values) -> str:
     pairs = playfair.digraphs(text.replace("J", "I"), alphabet)
     cipher = playfair.encrypt(text, keyword)
     return "\n".join([
-        f"Шифрующая таблица для ключа {keyword}:", "",
+        t("explain.playfair.table", keyword=keyword), "",
         playfair.render(keyword, alphabet), "",
-        "Биграммы: " + " ".join(pairs),
-        "Результат: " + " ".join(cipher[i:i + 2] for i in range(0, len(cipher), 2)),
+        t("explain.playfair.digraphs") + " ".join(pairs),
+        t("explain.playfair.result") + " ".join(cipher[i:i + 2] for i in range(0, len(cipher), 2)),
     ])
 
 
 def _explain_vigenere(text: str, values: Values) -> str:
     stream = vigenere.keystream(text, values["keyword"], values["scheme"])
     return "\n".join([
-        f"Схема ключа: {values['scheme']}", "",
-        "текст: " + " ".join(text),
-        "ключ:  " + " ".join(stream),
-        "шифр:  " + " ".join(vigenere.encrypt(text, values["keyword"], values["scheme"])),
+        t("explain.vigenere.scheme", scheme=values["scheme"]), "",
+        t("explain.vigenere.text") + " ".join(text),
+        t("explain.vigenere.key") + " ".join(stream),
+        t("explain.vigenere.cipher") + " ".join(vigenere.encrypt(text, values["keyword"], values["scheme"])),
     ])
 
 
 # --------------------------------------------------------------------------
-# Реестр шифров
+# Cipher registry
 # --------------------------------------------------------------------------
 
 METHODS: Dict[str, Method] = {
-    "Железнодорожная изгородь": Method(
-        title="Перестановка: текст пишется зигзагом по K строкам",
-        params=[Param("key", "Высота изгороди K", "int", 4, limits=(2, 40))],
+    "fence": Method(
+        params=[Param("key", "int", 4, limits=(2, 40))],
         encrypt=lambda text, v: fence.encrypt(text, v["key"]),
         decrypt=lambda text, v: fence.decrypt(text, v["key"]),
         explain=_explain_fence,
     ),
-    "Столбцовый метод": Method(
-        title="Перестановка: чтение по столбцам в порядке, заданном ключевым словом",
+    "column": Method(
         params=[
-            Param("keyword", "Ключевое слово", "text", "КРИПТОГРАФИЯ"),
-            Param("keyword2", "Второй ключ (двойная перестановка)", "text", "",
-                  hint="пусто — одинарная перестановка"),
+            Param("keyword", "text", "КРИПТОГРАФИЯ"),
+            Param("keyword2", "text", "", hint=True),
         ],
         encrypt=lambda text, v: (columnar.encrypt_double(text, v["keyword"], v["keyword2"])
                                  if v["keyword2"] else columnar.encrypt(text, v["keyword"])),
@@ -156,41 +155,34 @@ METHODS: Dict[str, Method] = {
                                  if v["keyword2"] else columnar.decrypt(text, v["keyword"])),
         explain=_explain_column,
     ),
-    "Поворачивающаяся решётка": Method(
-        title="Перестановка: запись через отверстия решётки с поворотом на 90°",
+    "grille": Method(
         params=[
-            Param("size", "Размер решётки", "choice", 4, choices=(4, 6, 8)),
-            Param("holes", "Отверстия (по одному на орбиту)", "grille", "0,7,10,13"),
+            Param("size", "choice", 4, choices=(4, 6, 8)),
+            Param("holes", "grille", "0,7,10,13"),
         ],
         encrypt=lambda text, v: grille.encrypt(text, *grille.parse_key(v["holes"])),
         decrypt=lambda text, v: grille.decrypt(text, *grille.parse_key(v["holes"])),
         explain=_explain_grille,
     ),
-    "Шифр Цезаря / аффинный": Method(
-        title="Подстановка: E(i) = (i · k1 + k2) mod n, при k1 = 1 — шифр Цезаря",
+    "caesar": Method(
         params=[
-            Param("key", "Сдвиг k2", "int", 3, limits=(0, 40)),
-            Param("mul", "Множитель k1", "int", 1, limits=(1, 40),
-                  hint="должен быть взаимно прост с мощностью алфавита"),
+            Param("key", "int", 3, limits=(0, 40)),
+            Param("mul", "int", 1, limits=(1, 40), hint=True),
         ],
         encrypt=lambda text, v: caesar.encrypt(text, v["key"], v["mul"]),
         decrypt=lambda text, v: caesar.decrypt(text, v["key"], v["mul"]),
         explain=_explain_caesar,
     ),
-    "Шифр Плейфейра": Method(
-        title="Подстановка: биграммы заменяются по шифрующей таблице",
-        params=[Param("keyword", "Ключевое слово таблицы", "text", "CRYPTOGRAPHY",
-                      hint="ключ и текст — в одном алфавите")],
+    "playfair": Method(
+        params=[Param("keyword", "text", "CRYPTOGRAPHY", hint=True)],
         encrypt=lambda text, v: playfair.encrypt(text, v["keyword"]),
         decrypt=lambda text, v: playfair.decrypt(text, v["keyword"]),
         explain=_explain_playfair,
     ),
-    "Шифр Виженера": Method(
-        title="Подстановка: каждая позиция шифруется своим сдвигом из ключа",
+    "vigenere": Method(
         params=[
-            Param("keyword", "Ключевое слово", "text", "MODE",
-                  hint="ключ и текст — в одном алфавите"),
-            Param("scheme", "Схема ключа", "choice", "direct", choices=vigenere.MODES),
+            Param("keyword", "text", "MODE", hint=True),
+            Param("scheme", "choice", "direct", choices=vigenere.MODES),
         ],
         encrypt=lambda text, v: vigenere.encrypt(text, v["keyword"], v["scheme"]),
         decrypt=lambda text, v: vigenere.decrypt(text, v["keyword"], v["scheme"]),
