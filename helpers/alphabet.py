@@ -1,11 +1,11 @@
-"""Рабочий алфавит: русский (32 буквы, Ё отождествлена с Е) или английский."""
+"""Working alphabet: Russian (32 letters, Ё merged with Е) or English."""
 
 RUSSIAN = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
 ENGLISH = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def detect(*texts: str) -> str:
-    """Алфавит определяется по первой букве текста или ключа."""
+    """The alphabet is chosen by the first letter of the text or key."""
     for text in texts:
         for symbol in text:
             if symbol in RUSSIAN:
@@ -18,5 +18,5 @@ def detect(*texts: str) -> str:
 def check(text: str, alphabet: str) -> None:
     unknown = sorted(set(text) - set(alphabet))
     if unknown:
-        raise ValueError(f"символы вне алфавита: {' '.join(unknown)} "
-                         "(текст и ключ должны быть в одном алфавите)")
+        raise ValueError(f"symbols outside the alphabet: {' '.join(unknown)} "
+                         "(text and key must use the same alphabet)")

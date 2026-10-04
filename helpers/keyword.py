@@ -1,4 +1,4 @@
-"""Числовой ключ перестановки из ключевого слова."""
+"""Numeric permutation key derived from a keyword."""
 
 from typing import List
 
@@ -6,19 +6,19 @@ from helpers.text import normalize
 
 
 def read_order(keyword: str) -> List[int]:
-    """Порядок чтения столбцов: индексы столбцов в порядке возрастания номера.
+    """Column reading order: column indexes sorted by their number.
 
-    Буквам ключа назначаются номера по алфавиту; одинаковые буквы нумеруются
-    слева направо (за это отвечает вторичный ключ сортировки `i`).
+    Key letters are numbered alphabetically; equal letters are numbered
+    left to right (the secondary sort key `i` takes care of that).
     """
     letters = normalize(keyword)
     if not letters:
-        raise ValueError("Ключевое слово не содержит букв")
+        raise ValueError("The keyword contains no letters")
     return sorted(range(len(letters)), key=lambda i: (letters[i], i))
 
 
 def key_numbers(keyword: str) -> List[int]:
-    """Номера столбцов 1..d в порядке следования букв ключа (для наглядности)."""
+    """Column numbers 1..d in the order of the key letters (for display)."""
     order = read_order(keyword)
     numbers = [0] * len(order)
     for rank, column in enumerate(order, start=1):

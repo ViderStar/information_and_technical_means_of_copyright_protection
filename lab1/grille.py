@@ -1,8 +1,8 @@
-"""Метод поворачивающейся решётки (решётка Кардано).
+"""Turning grille cipher (Cardano grille).
 
-Решётка n x n с n*n/4 отверстиями: текст пишется в отверстия, после
-заполнения решётка поворачивается на 90 градусов, и так четыре раза.
-Шифротекст читается из полученной матрицы построчно.
+An n x n grille with n*n/4 holes: the text is written through the holes,
+then the grille is turned by 90 degrees, four times in total.
+The ciphertext is read from the resulting matrix row by row.
 """
 
 from typing import Dict, List, Tuple
@@ -14,13 +14,13 @@ Cell = Tuple[int, int]
 
 
 def rotate(cell: Cell, n: int) -> Cell:
-    """Поворот клетки на 90 градусов по часовой стрелке."""
+    """Rotate a cell by 90 degrees clockwise."""
     row, col = cell
     return col, n - 1 - row
 
 
 def orbit_map(n: int) -> Dict[Cell, int]:
-    """Разметка матрицы: клетки, совпадающие при поворотах, — один номер."""
+    """Matrix layout: cells that coincide under rotation share one number."""
     orbits: Dict[Cell, int] = {}
     for row in range(n):
         for col in range(n):
@@ -34,24 +34,24 @@ def orbit_map(n: int) -> Dict[Cell, int]:
 
 
 def parse_key(spec: str) -> Tuple[List[Cell], int]:
-    """Ключ '0,7,10,13' -> отверстия [(0,0),(1,3),(2,2),(3,1)] и размер n."""
+    """Key '0,7,10,13' -> holes [(0,0),(1,3),(2,2),(3,1)] and size n."""
     indexes = [int(part) for part in spec.replace(";", ",").split(",") if part.strip()]
     n = int(round((4 * len(indexes)) ** 0.5))
     if n % 2 or n * n != 4 * len(indexes):
-        raise ValueError("Число отверстий должно равняться n*n/4 при чётном n")
+        raise ValueError("The number of holes must equal n*n/4 for an even n")
 
     holes = [(i // n, i % n) for i in indexes]
     if any(not 0 <= i < n * n for i in indexes):
-        raise ValueError("Отверстие выходит за пределы решётки")
+        raise ValueError("A hole lies outside the grille")
 
     orbits = orbit_map(n)
     if len({orbits[cell] for cell in holes}) != len(holes):
-        raise ValueError("Отверстия перекрываются при поворотах решётки")
+        raise ValueError("Holes overlap when the grille is turned")
     return holes, n
 
 
 def fill_order(holes: List[Cell], n: int) -> List[int]:
-    """Позиции матрицы в порядке заполнения: 4 поворота, внутри — построчно."""
+    """Matrix positions in filling order: 4 turns, row by row within each."""
     order: List[int] = []
     current = list(holes)
     for _ in range(4):
@@ -63,7 +63,7 @@ def fill_order(holes: List[Cell], n: int) -> List[int]:
 def encrypt(text: str, holes: List[Cell], n: int) -> str:
     order = fill_order(holes, n)
     block = n * n
-    # заполнители берутся из того же алфавита, что и текст
+    # fillers come from the same alphabet as the text
     fillers = FILLERS if detect(text) is RUSSIAN else ENGLISH
     cipher = []
     for start in range(0, len(text), block):
@@ -80,7 +80,7 @@ def decrypt(cipher: str, holes: List[Cell], n: int) -> str:
     order = fill_order(holes, n)
     block = n * n
     if len(cipher) % block:
-        raise ValueError(f"Длина шифротекста должна быть кратна {block}")
+        raise ValueError(f"Ciphertext length must be a multiple of {block}")
     return "".join(cipher[start + position]
                    for start in range(0, len(cipher), block)
                    for position in order)

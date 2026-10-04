@@ -1,13 +1,13 @@
-"""Метод "железнодорожная изгородь" (rail fence).
+"""Rail fence cipher.
 
-Текст пишется зигзагом по K строкам, шифротекст читается построчно.
+The text is written in a zigzag over K rows; the ciphertext is read row by row.
 """
 
 from typing import List
 
 
 def row_pattern(length: int, key: int) -> List[int]:
-    """Номер строки для каждой позиции текста: 0,1,..,K-1,K-2,..,1,0,1,..."""
+    """Row number for each text position: 0,1,..,K-1,K-2,..,1,0,1,..."""
     if key < 2:
         return [0] * length
     period = 2 * key - 2

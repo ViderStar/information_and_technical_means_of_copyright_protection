@@ -1,8 +1,8 @@
-"""Шифр Виженера (вариант №3) с тремя схемами применения ключа.
+"""Vigenere cipher (variant 3) with three key schemes.
 
-direct      — ключ повторяется циклически
-progressive — при каждом повторе символы ключа сдвигаются на одну позицию
-autokey     — продолжением ключа служит сам исходный текст
+direct      - the key is repeated cyclically
+progressive - on every repeat the key symbols are shifted by one position
+autokey     - the plaintext itself continues the key
 """
 
 from typing import List, Sequence
@@ -14,7 +14,7 @@ MODES = ("direct", "progressive", "autokey")
 
 def _key_shift(i: int, key: Sequence[int], mode: str,
                plain: Sequence[str], alphabet: str) -> int:
-    """Сдвиг для позиции i; для autokey используется уже известный текст."""
+    """Shift for position i; autokey uses the already known text."""
     length = len(key)
     if mode == "autokey":
         return key[i] if i < length else alphabet.index(plain[i - length])
@@ -24,18 +24,18 @@ def _key_shift(i: int, key: Sequence[int], mode: str,
 
 def _run(text: str, keyword: str, mode: str, decode: bool) -> str:
     if mode not in MODES:
-        raise ValueError(f"Режим ключа должен быть одним из {MODES}")
+        raise ValueError(f"Key scheme must be one of {MODES}")
 
     alphabet = detect(text, keyword)
     check(text + keyword, alphabet)
     key = [alphabet.index(symbol) for symbol in keyword]
     if not key:
-        raise ValueError("Пустой ключ")
+        raise ValueError("Empty key")
 
     n = len(alphabet)
     result: List[str] = []
     for i, symbol in enumerate(text):
-        # при дешифровании autokey ключом служит уже восстановленный текст
+        # when decrypting, autokey uses the plaintext recovered so far
         shift = _key_shift(i, key, mode, result if decode else text, alphabet)
         index = alphabet.index(symbol)
         result.append(alphabet[(index - shift) % n if decode else (index + shift) % n])
@@ -43,7 +43,7 @@ def _run(text: str, keyword: str, mode: str, decode: bool) -> str:
 
 
 def keystream(text: str, keyword: str, mode: str = "direct") -> str:
-    """Последовательность ключа, реально применённая к тексту (для наглядности)."""
+    """The key sequence actually applied to the text (for display)."""
     alphabet = detect(text, keyword)
     key = [alphabet.index(symbol) for symbol in keyword]
     return "".join(alphabet[_key_shift(i, key, mode, text, alphabet)]
