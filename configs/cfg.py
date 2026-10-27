@@ -20,3 +20,8 @@ CAESAR_MUL = int(os.getenv("CAESAR_MUL", "1"))       # 1 = Caesar, otherwise aff
 PLAYFAIR_KEY = os.getenv("PLAYFAIR_KEY", "CRYPTOGRAPHY")
 VIGENERE_KEY = os.getenv("VIGENERE_KEY", "MODE")
 VIGENERE_MODE = os.getenv("VIGENERE_MODE", "direct")
+
+# Lab 2, RSA cryptosystem: keys from the "CAT" example in the lab manual
+RSA_P = int(os.getenv("RSA_P", "3"))
+RSA_Q = int(os.getenv("RSA_Q", "11"))
+RSA_E = int(os.getenv("RSA_E", "7"))

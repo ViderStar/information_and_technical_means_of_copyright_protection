@@ -6,18 +6,26 @@ import argparse
 import logging
 import sys
 
+from typing import Optional, Tuple
+
 from configs.cfg import (CAESAR_KEY, CAESAR_MUL, COLUMN_KEY, COLUMN_KEY2,
                          FENCE_KEY, GRILLE_KEY, GROUP_SIZE, PLAYFAIR_KEY,
+                         RSA_E, RSA_P, RSA_Q,
                          VIGENERE_KEY, VIGENERE_MODE)
 from helpers.text import group, normalize
 from lab1 import caesar, columnar, fence, grille, playfair, vigenere
 from lab1.runner import run_lab1
+from lab2 import rsa
+from lab2.runner import euclid_table, run_lab2
+
+LAB_COMMANDS = ("rsa",)
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="main.py",
-        description="Lab 1: transposition and substitution ciphers.")
+        description="Lab 1: transposition and substitution ciphers; "
+                    "lab 2: RSA cryptosystem.")
     methods = parser.add_subparsers(dest="method", required=True)
 
     fence_cmd = methods.add_parser("fence", help="rail fence")
@@ -59,8 +67,30 @@ def build_parser() -> argparse.ArgumentParser:
                               default=VIGENERE_MODE,
                               help="key scheme (default: %(default)s)")
 
-    methods.add_parser("demo", help="run the examples from the lab manual")
-    methods.add_parser("gui", help="graphical interface (tkinter)")
+    rsa_cmd = methods.add_parser(
+        "rsa", help="lab 2: RSA keys, encryption and decryption",
+        description="Keys come from p, q, e (d is computed by the extended Euclid) "
+                    "or are given directly: -e/-d with -r.")
+    rsa_cmd.add_argument("mode", choices=("keys", "enc", "dec"))
+    rsa_cmd.add_argument("--codec", choices=rsa.CODECS, default="letters",
+                         help="letters: A=2..Z=27, А=28..Я=60 as in the manual; "
+                              "unicode: code points, any symbols (default: %(default)s)")
+    rsa_cmd.set_defaults(key_defaults=(RSA_P, RSA_Q, RSA_E))
+
+    for command in (rsa_cmd,):
+        command.add_argument("-p", type=int, help="prime p")
+        command.add_argument("-q", type=int, help="prime q")
+        command.add_argument("-e", type=int, help="public exponent e")
+        command.add_argument("-d", type=int, help="secret exponent d (with -r)")
+        command.add_argument("-r", type=int, help="modulus r = p*q (with -e or -d)")
+        command.add_argument("-t", "--text", help="text (read from stdin if omitted)")
+
+    demo_cmd = methods.add_parser("demo", help="run the examples from the lab manual")
+    demo_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2),
+                          help="lab number (default: all labs)")
+    gui_cmd = methods.add_parser("gui", help="graphical interface (tkinter)")
+    gui_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2), default=1,
+                         help="lab number (default: %(default)s)")
 
     for command in (fence_cmd, column_cmd, grille_cmd,
                     caesar_cmd, playfair_cmd, vigenere_cmd):
@@ -84,12 +114,25 @@ def main() -> None:
     args = build_parser().parse_args()
 
     if args.method == "demo":
-        run_lab1()
+        for lab, runner in ((1, run_lab1), (2, run_lab2)):
+            if args.lab in (None, lab):
+                runner()
         return
 
     if args.method == "gui":
-        from gui import run          # tkinter is imported only when the window starts
+        # tkinter is imported only when the window starts
+        if args.lab == 2:
+            from lab2.gui import run
+        else:
+            from gui import run
         run()
+        return
+
+    if args.method in LAB_COMMANDS:
+        try:
+            run_public_key(args)
+        except ValueError as error:
+            raise SystemExit(f"Error: {error}")
         return
 
     text = read_text(args)
@@ -100,6 +143,52 @@ def main() -> None:
         raise SystemExit(f"Error: {error}")
 
     print(result if args.raw else group(result))
+
+
+def resolve_keys(args: argparse.Namespace,
+                 trace: Optional[list] = None) -> Tuple[Optional[int], Optional[int], int]:
+    """(e, d, r) from -p/-q/-e, or from -r with -e and/or -d given directly."""
+    if args.r is not None:
+        if args.p is not None or args.q is not None:
+            raise ValueError("give either -p and -q, or -r")
+        return args.e, args.d, args.r
+    default_p, default_q, default_e = args.key_defaults
+    keys = rsa.make_keys(default_p if args.p is None else args.p,
+                         default_q if args.q is None else args.q,
+                         default_e if args.e is None else args.e, trace)
+    if args.d is not None and args.d != keys.d:
+        raise ValueError(f"-d {args.d} does not match p, q, e: d = {keys.d}")
+    return keys.e, keys.d, keys.r
+
+
+def require(value: Optional[int], name: str) -> int:
+    if value is None:
+        raise ValueError(f"-{name} is required together with -r")
+    return value
+
+
+def run_public_key(args: argparse.Namespace) -> None:
+    """Lab 2: RSA keys, encryption and decryption."""
+    if args.method == "rsa" and args.mode == "keys":
+        if args.r is not None:
+            raise ValueError("keys are computed from p, q and e: drop -r")
+        trace: list = []
+        e, d, r = resolve_keys(args, trace)
+        print(f"r = p*q = {r}")
+        print(f"Extended Euclid for a = phi(r) = {trace[0].d}, b = e = {e}:")
+        print("\n".join(euclid_table(trace)))
+        print(f"d = {d}\nKo = (e, r) = ({e}, {r})\nKc = (d, r) = ({d}, {r})")
+        return
+
+    e, d, r = resolve_keys(args)
+    text = args.text if args.text is not None else sys.stdin.read().strip()
+    if not text:
+        raise SystemExit("Empty text: nothing to process")
+
+    if args.mode == "enc":
+        print(rsa.encrypt_text(text, require(e, "e"), r, args.codec))
+    else:
+        print(rsa.decrypt_text(text, require(d, "d"), r, args.codec))
 
 
 def encipher(args: argparse.Namespace, text: str) -> str:

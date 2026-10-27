@@ -21,13 +21,21 @@
 «Доказательство с нулевым знанием» ([PDF](referat/main.pdf)) и
 [теория](labs_info/lab1_theory.md) — на русском.
 
+## ЛР №2: криптосистема RSA (вариант 1)
+
+Вычисление пары ключей по заданным p, q, e расширенным алгоритмом Евклида, шифратор и
+дешифратор на быстром возведении в степень. Пример методички (p = 3, q = 11, e = 7:
+d = 3, CAT → 16 29 21) воспроизводится точно.
+Отчёт: [PDF](report_lab2/main.pdf), [исходник](report_lab2/main.tex).
+
 ## Быстрый старт
 
 Python 3.9+, только стандартная библиотека.
 
 ```bash
 python3 main.py gui     # окно: выбор шифра, параметры, разбор работы
-python3 main.py demo    # прогон всех примеров методички с проверкой
+python3 main.py demo    # прогон всех примеров методички с проверкой (demo 1|2 — одна ЛР)
+python3 main.py gui 2   # окно ЛР2
 ```
 
 Окно открывается на английском; язык переключается в селекторе на верхней панели.
@@ -41,6 +49,12 @@ python3 main.py playfair enc -k CRYPTOGRAPHY -t "ciphertext"
 python3 main.py vigenere enc -k MODE -s progressive -t "Cryptography"
 ```
 
+```bash
+python3 main.py rsa keys -p 3 -q 11 -e 7                 # r, phi(r), ход алгоритма Евклида, d
+python3 main.py rsa enc -t CAT                           # 16 29 21
+python3 main.py rsa dec -d 3 -r 33 -t "16 29 21"         # CAT
+```
+
 `dec` выполняет обратное преобразование с тем же ключом, `--raw` отключает группы по
 5 символов, текст можно подать через stdin.
 
@@ -49,10 +63,13 @@ python3 main.py vigenere enc -k MODE -s progressive -t "Cryptography"
 ```
 main.py       CLI всех лабораторных работ
 configs/      ключи и параметры по умолчанию (переопределяются через env)
-helpers/      нормализация текста, числовой ключ из слова, выбор алфавита
+helpers/      нормализация текста, числовой ключ из слова, выбор алфавита,
+              теория чисел (fast_exp, расширенный Евклид, Миллер–Рабин)
 lab1/         шифры и demo-прогон
-gui/          окно на tkinter (methods.py — реестр шифров, i18n.py — переводы)
+lab2/         RSA: ключи, шифрование, demo-прогон, окно
+gui/          окно ЛР1 на tkinter (methods.py — реестр шифров, i18n.py — переводы)
 report/       отчёт по ЛР1 (LaTeX + PDF)
+report_lab2/  отчёт по ЛР2
 referat/      реферат (LaTeX + PDF)
 ```
 

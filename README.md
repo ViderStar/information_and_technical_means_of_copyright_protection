@@ -18,13 +18,21 @@ All eight reference examples from the lab manual are reproduced symbol by symbol
 The report ([PDF](report/main.pdf), [source](report/main.tex)), the essay on zero-knowledge
 proofs ([PDF](referat/main.pdf)) and the [theory notes](labs_info/lab1_theory.md) are in Russian.
 
+## Lab 2: RSA cryptosystem (variant 1)
+
+Key pair from given p, q, e via the extended Euclidean algorithm, encryption and
+decryption via fast modular exponentiation. The manual's example (p = 3, q = 11, e = 7:
+d = 3, CAT -> 16 29 21) is reproduced exactly.
+Report: [PDF](report_lab2/main.pdf), [source](report_lab2/main.tex).
+
 ## Quick start
 
 Python 3.9+, standard library only.
 
 ```bash
 python3 main.py gui     # window: pick a cipher, set parameters, see how it works
-python3 main.py demo    # run all manual examples with verification
+python3 main.py demo    # run all manual examples with verification (demo 1|2 for one lab)
+python3 main.py gui 2   # lab 2 window
 ```
 
 The window opens in English; the language selector in the top bar switches to Russian.
@@ -38,6 +46,12 @@ python3 main.py playfair enc -k CRYPTOGRAPHY -t "ciphertext"
 python3 main.py vigenere enc -k MODE -s progressive -t "Cryptography"
 ```
 
+```bash
+python3 main.py rsa keys -p 3 -q 11 -e 7                 # r, phi(r), Euclid trace, d
+python3 main.py rsa enc -t CAT                           # 16 29 21
+python3 main.py rsa dec -d 3 -r 33 -t "16 29 21"         # CAT
+```
+
 `dec` reverses the transform with the same key, `--raw` turns off 5-symbol grouping,
 and text can be piped through stdin.
 
@@ -46,10 +60,13 @@ and text can be piped through stdin.
 ```
 main.py       CLI for all labs
 configs/      default keys and settings (overridable via environment variables)
-helpers/      text normalization, keyword to numeric key, alphabet detection
+helpers/      text normalization, keyword to numeric key, alphabet detection,
+              number theory (fast_exp, extended Euclid, Miller-Rabin)
 lab1/         the ciphers and the demo runner
-gui/          tkinter window (methods.py: cipher registry, i18n.py: translations)
+lab2/         RSA: keys, encryption, demo runner, window
+gui/          Lab 1 tkinter window (methods.py: cipher registry, i18n.py: translations)
 report/       Lab 1 report (LaTeX + PDF)
+report_lab2/  Lab 2 report
 referat/      essay (LaTeX + PDF)
 ```
 
