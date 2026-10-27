@@ -1,0 +1,103 @@
+=== Lab 3: RSA digital signature ===
+
+=== Example from the lab manual ===
+
+p = 17, q = 19, r = 323, phi(r) = 288, e = 43
+Extended Euclid:
+step      q        d        x        y
+   0             288        1        0
+   1              43        0        1
+   2      6       30        1       -6
+   3      1       13       -1        7
+   4      2        4        3      -20
+   5      3        1      -10       67
+d = 67; matches the lab manual
+Ko = (43, 323), Kc = (67, 323)
+
+--- Hash of БГУИР (n = r = 323) ---
+H0 = 100
+H1 = (H0 + m1)^2 mod n = (100 + 2)^2 mod 323 = 68    [Б]
+H2 = (H1 + m2)^2 mod n = (68 + 4)^2 mod 323 = 16    [Г]
+H3 = (H2 + m3)^2 mod n = (16 + 21)^2 mod 323 = 77    [У]
+H4 = (H3 + m4)^2 mod n = (77 + 10)^2 mod 323 = 140    [И]
+H5 = (H4 + m5)^2 mod n = (140 + 18)^2 mod 323 = 93    [Р]
+h(M) = 93; matches the lab manual
+
+S = m^d mod r = 93^67 mod 323 = 206; matches the lab manual
+Signed message: {БГУИР, 206}
+
+--- Genuine message ---
+M' = БГУИР
+S = 206
+H0 = 100
+H1 = (H0 + m1)^2 mod n = (100 + 2)^2 mod 323 = 68    [Б]
+H2 = (H1 + m2)^2 mod n = (68 + 4)^2 mod 323 = 16    [Г]
+H3 = (H2 + m3)^2 mod n = (16 + 21)^2 mod 323 = 77    [У]
+H4 = (H3 + m4)^2 mod n = (77 + 10)^2 mod 323 = 140    [И]
+H5 = (H4 + m5)^2 mod n = (140 + 18)^2 mod 323 = 93    [Р]
+m' = h(M') = 93
+m = S^e mod r = 93
+signature is VALID
+
+--- Message changed in transit ---
+M' = БРУИР
+S = 206
+H0 = 100
+H1 = (H0 + m1)^2 mod n = (100 + 2)^2 mod 323 = 68    [Б]
+H2 = (H1 + m2)^2 mod n = (68 + 18)^2 mod 323 = 290    [Р]
+H3 = (H2 + m3)^2 mod n = (290 + 21)^2 mod 323 = 144    [У]
+H4 = (H3 + m4)^2 mod n = (144 + 10)^2 mod 323 = 137    [И]
+H5 = (H4 + m5)^2 mod n = (137 + 18)^2 mod 323 = 123    [Р]
+m' = h(M') = 123
+m = S^e mod r = 93
+signature is INVALID; matches the lab manual
+
+--- Signature changed in transit ---
+M' = БГУИР
+S = 207
+H0 = 100
+H1 = (H0 + m1)^2 mod n = (100 + 2)^2 mod 323 = 68    [Б]
+H2 = (H1 + m2)^2 mod n = (68 + 4)^2 mod 323 = 16    [Г]
+H3 = (H2 + m3)^2 mod n = (16 + 21)^2 mod 323 = 77    [У]
+H4 = (H3 + m4)^2 mod n = (77 + 10)^2 mod 323 = 140    [И]
+H5 = (H4 + m5)^2 mod n = (140 + 18)^2 mod 323 = 93    [Р]
+m' = h(M') = 93
+m = S^e mod r = 24
+signature is INVALID
+
+=== Weakness of a small modulus: hash collision ===
+
+h(АБЛ) = h(БГУИР) = 93, found after 46 tries
+--- Forged message with the stolen signature ---
+M' = АБЛ
+S = 206
+H0 = 100
+H1 = (H0 + m1)^2 mod n = (100 + 1)^2 mod 323 = 188    [А]
+H2 = (H1 + m2)^2 mod n = (188 + 2)^2 mod 323 = 247    [Б]
+H3 = (H2 + m3)^2 mod n = (247 + 13)^2 mod 323 = 93    [Л]
+m' = h(M') = 93
+m = S^e mod r = 93
+signature is VALID
+
+=== 256-bit modulus, e = 65537 ===
+
+r = 82924805423338389897214052819514817915331336743115935277657371471556577865171
+d = 74709129368381096069260212317857590505495779209675118509057976282995080571873
+
+--- Genuine message ---
+M' = Лебедевич Артем Владимирович, лабораторная работа 3, 2026
+S = 29096725476915481606490077833955416584088312737526206206732455365896115536116
+m' = h(M') = 73967938765295933998387524035571872905223564277412855834493943216929750470872
+m = S^e mod r = 73967938765295933998387524035571872905223564277412855834493943216929750470872
+signature is VALID
+
+--- One digit changed ---
+M' = Лебедевич Артем Владимирович, лабораторная работа 4, 2026
+S = 29096725476915481606490077833955416584088312737526206206732455365896115536116
+m' = h(M') = 53354868048707820284393711651565680685151016449043082107106414119054689609572
+m = S^e mod r = 73967938765295933998387524035571872905223564277412855834493943216929750470872
+signature is INVALID
+
+Self-check: 200 random messages and keys, every signature verified;
+a one-symbol change detected in 200 of 200 cases
+

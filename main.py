@@ -9,23 +9,25 @@ import sys
 from typing import Optional, Tuple
 
 from configs.cfg import (CAESAR_KEY, CAESAR_MUL, COLUMN_KEY, COLUMN_KEY2,
-                         FENCE_KEY, GRILLE_KEY, GROUP_SIZE, PLAYFAIR_KEY,
-                         RSA_E, RSA_P, RSA_Q,
+                         FENCE_KEY, GRILLE_KEY, GROUP_SIZE, HASH_H0, PLAYFAIR_KEY,
+                         RSA_E, RSA_P, RSA_Q, SIGN_E, SIGN_P, SIGN_Q,
                          VIGENERE_KEY, VIGENERE_MODE)
 from helpers.text import group, normalize
 from lab1 import caesar, columnar, fence, grille, playfair, vigenere
 from lab1.runner import run_lab1
 from lab2 import rsa
 from lab2.runner import euclid_table, run_lab2
+from lab3 import signature
+from lab3.runner import hash_table, run_lab3
 
-LAB_COMMANDS = ("rsa",)
+LAB_COMMANDS = ("rsa", "sign", "verify")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="main.py",
         description="Lab 1: transposition and substitution ciphers; "
-                    "lab 2: RSA cryptosystem.")
+                    "lab 2: RSA cryptosystem; lab 3: RSA digital signature.")
     methods = parser.add_subparsers(dest="method", required=True)
 
     fence_cmd = methods.add_parser("fence", help="rail fence")
@@ -77,19 +79,32 @@ def build_parser() -> argparse.ArgumentParser:
                               "unicode: code points, any symbols (default: %(default)s)")
     rsa_cmd.set_defaults(key_defaults=(RSA_P, RSA_Q, RSA_E))
 
-    for command in (rsa_cmd,):
+    sign_cmd = methods.add_parser("sign", help="lab 3: sign a message (RSA)")
+    sign_cmd.set_defaults(key_defaults=(SIGN_P, SIGN_Q, SIGN_E))
+
+    verify_cmd = methods.add_parser("verify", help="lab 3: verify a signature (RSA)")
+    verify_cmd.add_argument("-s", "--signature", type=int, required=True,
+                            help="signature S")
+    verify_cmd.set_defaults(key_defaults=(SIGN_P, SIGN_Q, SIGN_E))
+
+    for command in (rsa_cmd, sign_cmd, verify_cmd):
         command.add_argument("-p", type=int, help="prime p")
         command.add_argument("-q", type=int, help="prime q")
         command.add_argument("-e", type=int, help="public exponent e")
         command.add_argument("-d", type=int, help="secret exponent d (with -r)")
         command.add_argument("-r", type=int, help="modulus r = p*q (with -e or -d)")
         command.add_argument("-t", "--text", help="text (read from stdin if omitted)")
+    for command in (sign_cmd, verify_cmd):
+        command.add_argument("--h0", type=int, default=HASH_H0,
+                             help="initial hash value H0 (default: %(default)s)")
+        command.add_argument("-v", "--verbose", action="store_true",
+                             help="print the hash computation step by step")
 
     demo_cmd = methods.add_parser("demo", help="run the examples from the lab manual")
-    demo_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2),
+    demo_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2, 3),
                           help="lab number (default: all labs)")
     gui_cmd = methods.add_parser("gui", help="graphical interface (tkinter)")
-    gui_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2), default=1,
+    gui_cmd.add_argument("lab", nargs="?", type=int, choices=(1, 2, 3), default=1,
                          help="lab number (default: %(default)s)")
 
     for command in (fence_cmd, column_cmd, grille_cmd,
@@ -114,7 +129,7 @@ def main() -> None:
     args = build_parser().parse_args()
 
     if args.method == "demo":
-        for lab, runner in ((1, run_lab1), (2, run_lab2)):
+        for lab, runner in ((1, run_lab1), (2, run_lab2), (3, run_lab3)):
             if args.lab in (None, lab):
                 runner()
         return
@@ -123,6 +138,8 @@ def main() -> None:
         # tkinter is imported only when the window starts
         if args.lab == 2:
             from lab2.gui import run
+        elif args.lab == 3:
+            from lab3.gui import run
         else:
             from gui import run
         run()
@@ -168,7 +185,7 @@ def require(value: Optional[int], name: str) -> int:
 
 
 def run_public_key(args: argparse.Namespace) -> None:
-    """Lab 2: RSA keys, encryption and decryption."""
+    """Labs 2 and 3: RSA keys, encryption and signatures."""
     if args.method == "rsa" and args.mode == "keys":
         if args.r is not None:
             raise ValueError("keys are computed from p, q and e: drop -r")
@@ -185,10 +202,28 @@ def run_public_key(args: argparse.Namespace) -> None:
     if not text:
         raise SystemExit("Empty text: nothing to process")
 
-    if args.mode == "enc":
-        print(rsa.encrypt_text(text, require(e, "e"), r, args.codec))
-    else:
-        print(rsa.decrypt_text(text, require(d, "d"), r, args.codec))
+    if args.method == "rsa":
+        if args.mode == "enc":
+            print(rsa.encrypt_text(text, require(e, "e"), r, args.codec))
+        else:
+            print(rsa.decrypt_text(text, require(d, "d"), r, args.codec))
+        return
+
+    steps: list = []
+    if args.method == "sign":
+        s = signature.sign(text, require(d, "d"), r, args.h0, steps)
+        if args.verbose:
+            print("\n".join(hash_table(steps, args.h0, r)))
+        print(f"h(M) = {steps[-1].h if steps else args.h0 % r}\nS = {s}")
+        return
+
+    verdict = signature.verify(text, args.signature, require(e, "e"), r, args.h0, steps)
+    if args.verbose:
+        print("\n".join(hash_table(steps, args.h0, r)))
+    print(f"m' = h(M') = {verdict.computed}\nm = S^e mod r = {verdict.recovered}")
+    print("signature is VALID" if verdict.valid else "signature is INVALID")
+    if not verdict.valid:
+        raise SystemExit(1)
 
 
 def encipher(args: argparse.Namespace, text: str) -> str:

@@ -25,14 +25,21 @@ decryption via fast modular exponentiation. The manual's example (p = 3, q = 11,
 d = 3, CAT -> 16 29 21) is reproduced exactly.
 Report: [PDF](report_lab2/main.pdf), [source](report_lab2/main.tex).
 
+## Lab 3: RSA digital signature (variant 1)
+
+Signing and verification with the manual's quadratic hash H_i = (H_{i-1} + m_i)^2 mod n.
+The manual's example (h(БГУИР) = 93, d = 67, S = 206, forged БРУИР -> 123) is
+reproduced exactly; the demo also finds a hash collision that forges a signature.
+Report: [PDF](report_lab3/main.pdf), [source](report_lab3/main.tex).
+
 ## Quick start
 
 Python 3.9+, standard library only.
 
 ```bash
 python3 main.py gui     # window: pick a cipher, set parameters, see how it works
-python3 main.py demo    # run all manual examples with verification (demo 1|2 for one lab)
-python3 main.py gui 2   # lab 2 window
+python3 main.py demo    # run all manual examples with verification (demo 1|2|3 for one lab)
+python3 main.py gui 2   # lab 2 window (gui 3 for lab 3)
 ```
 
 The window opens in English; the language selector in the top bar switches to Russian.
@@ -50,6 +57,8 @@ python3 main.py vigenere enc -k MODE -s progressive -t "Cryptography"
 python3 main.py rsa keys -p 3 -q 11 -e 7                 # r, phi(r), Euclid trace, d
 python3 main.py rsa enc -t CAT                           # 16 29 21
 python3 main.py rsa dec -d 3 -r 33 -t "16 29 21"         # CAT
+python3 main.py sign -t БГУИР -v                         # h(M) = 93, S = 206
+python3 main.py verify -e 43 -r 323 -s 206 -t БРУИР      # INVALID: 123 != 93
 ```
 
 `dec` reverses the transform with the same key, `--raw` turns off 5-symbol grouping,
@@ -64,9 +73,11 @@ helpers/      text normalization, keyword to numeric key, alphabet detection,
               number theory (fast_exp, extended Euclid, Miller-Rabin)
 lab1/         the ciphers and the demo runner
 lab2/         RSA: keys, encryption, demo runner, window
+lab3/         quadratic hash, RSA signature, demo runner, window
 gui/          Lab 1 tkinter window (methods.py: cipher registry, i18n.py: translations)
 report/       Lab 1 report (LaTeX + PDF)
 report_lab2/  Lab 2 report
+report_lab3/  Lab 3 report
 referat/      essay (LaTeX + PDF)
 ```
 

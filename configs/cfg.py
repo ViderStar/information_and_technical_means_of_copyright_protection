@@ -25,3 +25,9 @@ VIGENERE_MODE = os.getenv("VIGENERE_MODE", "direct")
 RSA_P = int(os.getenv("RSA_P", "3"))
 RSA_Q = int(os.getenv("RSA_Q", "11"))
 RSA_E = int(os.getenv("RSA_E", "7"))
+
+# Lab 3, RSA digital signature: keys and hash parameters from the "БГУИР" example
+SIGN_P = int(os.getenv("SIGN_P", "17"))
+SIGN_Q = int(os.getenv("SIGN_Q", "19"))
+SIGN_E = int(os.getenv("SIGN_E", "43"))
+HASH_H0 = int(os.getenv("HASH_H0", "100"))
