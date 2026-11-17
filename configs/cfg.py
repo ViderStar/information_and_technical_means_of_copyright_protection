@@ -31,3 +31,10 @@ SIGN_P = int(os.getenv("SIGN_P", "17"))
 SIGN_Q = int(os.getenv("SIGN_Q", "19"))
 SIGN_E = int(os.getenv("SIGN_E", "43"))
 HASH_H0 = int(os.getenv("HASH_H0", "100"))
+
+# Lab 4, steganography: method parameters from chapter 7
+LSB_DEPTH = int(os.getenv("LSB_DEPTH", "1"))            # LSBs per colour sample
+BPCS_ALPHA = float(os.getenv("BPCS_ALPHA", "0.3"))      # complexity threshold alpha0
+BPCS_PLANES = int(os.getenv("BPCS_PLANES", "4"))        # lowest bit planes used
+CPT_BLOCK = os.getenv("CPT_BLOCK", "4x4")               # block m x n
+CPT_R = int(os.getenv("CPT_R", "4"))                    # bits per block, r <= log2(mn + 1)

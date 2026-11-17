@@ -35,14 +35,24 @@ H_i = (H_{i-1} + m_i)^2 mod n. Пример (h(БГУИР) = 93, d = 67, S = 206
 воспроизводится точно; демо дополнительно находит коллизию хеша и подделывает подпись.
 Отчёт: [PDF](report_lab3/main.pdf), [исходник](report_lab3/main.tex).
 
+## ЛР №4: стеганография
+
+Текстовые методы (пробелы разной длины, невидимые символы, регистр букв, синонимы со
+смешанным основанием, мимикрия по КС-грамматике), LSB и BPCS для цветных PNG/BMP,
+CPT и его модификация с матрицей расстояний для бинарных изображений. Все числовые
+примеры главы 7 воспроизводятся точно (кОмПьютер, множества S1..S7 и бит (2,4) в CPT,
+предложение мимикрии для 1010, меры alpha и beta эталонных блоков). PNG и BMP читаются
+и пишутся только стандартной библиотекой.
+Отчёт: [PDF](report_lab4/main.pdf), [исходник](report_lab4/main.tex).
+
 ## Быстрый старт
 
 Python 3.9+, только стандартная библиотека.
 
 ```bash
 python3 main.py gui     # окно: выбор шифра, параметры, разбор работы
-python3 main.py demo    # прогон всех примеров методички с проверкой (demo 1|2|3 — одна ЛР)
-python3 main.py gui 2   # окно ЛР2 (gui 3 — окно ЛР3)
+python3 main.py demo    # прогон всех примеров методички с проверкой (demo 1|2|3|4 — одна ЛР)
+python3 main.py gui 2   # окно ЛР2 (gui 3, gui 4 — окна ЛР3 и ЛР4)
 ```
 
 Окно открывается на английском; язык переключается в селекторе на верхней панели.
@@ -64,6 +74,16 @@ python3 main.py sign -t БГУИР -v                         # h(M) = 93, S = 2
 python3 main.py verify -e 43 -r 323 -s 206 -t БРУИР      # INVALID: 123 != 93
 ```
 
+```bash
+python3 main.py sample photo -o photo.png                # тестовый контейнер
+python3 main.py lsb embed -i photo.png -k secret -t "Тайна"   # -> photo_stego.png
+python3 main.py lsb extract -i photo_stego.png -k secret
+python3 main.py bpcs embed -i photo.png -a 0.3 --planes 4 -t "BPCS"
+python3 main.py cpt embed -i stamp.png -k ITMCP --modified -t "БГУИР"
+python3 main.py text embed -s mixed -c container.txt -t Hi > stego.txt
+python3 main.py text extract -s mixed -c stego.txt
+```
+
 `dec` выполняет обратное преобразование с тем же ключом, `--raw` отключает группы по
 5 символов, текст можно подать через stdin.
 
@@ -77,10 +97,12 @@ helpers/      нормализация текста, числовой ключ �
 lab1/         шифры и demo-прогон
 lab2/         RSA: ключи, шифрование, demo-прогон, окно
 lab3/         квадратичный хеш, подпись RSA, demo-прогон, окно
+lab4/         стеганография: текстовые методы, LSB, BPCS, CPT, чтение PNG/BMP, окно
 gui/          окно ЛР1 на tkinter (methods.py — реестр шифров, i18n.py — переводы)
 report/       отчёт по ЛР1 (LaTeX + PDF)
 report_lab2/  отчёт по ЛР2
 report_lab3/  отчёт по ЛР3
+report_lab4/  отчёт по ЛР4
 referat/      реферат (LaTeX + PDF)
 ```
 
