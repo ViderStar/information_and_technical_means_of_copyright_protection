@@ -3,9 +3,11 @@
 import logging
 import textwrap
 import random
+import re
 from pathlib import Path
 from typing import List, Optional
 
+from configs.cfg import SPACES_BASE, STEGO_NAME
 from lab4 import bpcs, cpt, imageio, lsb, samples
 from lab4 import textsteg as ts
 from lab4.bits import format_bits, parse_bits
@@ -16,6 +18,9 @@ logger = logging.getLogger(__name__)
 DEMO_MESSAGE = "Лебедевич Артем, лабораторная работа 4: стеганография, 2026"
 CONTAINER = ("Хороший программист быстро находит ошибку в большом проекте. Он внимательно "
              "читает код и сразу видит проблему. Такая работа требует опыта и терпения.")
+
+VARIANT_CONTAINER = (Path(__file__).with_name("container.txt")
+                     .read_text(encoding="utf-8").strip())
 
 # Manual examples (chapter 7)
 LSB_BYTES = ["00100111", "11101001", "11001000", "00100111", "11001000", "11101001",
@@ -42,6 +47,71 @@ def _mark(ok: bool) -> str:
 
 def _matrix_lines(matrix: List[List[int]], indent: str = "  ") -> List[str]:
     return [indent + " ".join(map(str, row)) for row in matrix]
+
+
+# ---------------------------------------------------------------------- variant
+def digit_table(message: str, base: int) -> List[str]:
+    """Letter, Windows-1251 code, base-k digits and the spaces that carry them."""
+    lines = [f"{'symbol':<8}{'code':>5}  {'digits':<10}spaces between words"]
+    for ch in message:
+        code = ch.encode(ts.CODEC)[0]
+        digits = ts.byte_digits(code, base)
+        spaces = " ".join(str(d + 1) for d in digits)
+        lines.append(f"{repr(ch):<8}{code:>5}  {ts.format_digits(digits):<10}{spaces}")
+    return lines
+
+
+def _variant(base: int, out_dir: Optional[Path]) -> None:
+    """The lab variant: the full name in a text file, spaces in base `base`."""
+    logger.info("=== Variant: full name in a text file, spaces in base %d ===\n", base)
+    gaps = ts.spaces_capacity(VARIANT_CONTAINER)
+    width = ts.digit_width(base)
+    logger.info("Container lab4/container.txt: %d words, %d gaps;\nmessage: %s (%d symbols)",
+                len(VARIANT_CONTAINER.split()), gaps, STEGO_NAME, len(STEGO_NAME))
+    logger.info("Digit d is written as d + 1 spaces (1..%d), a Windows-1251 byte takes "
+                "%d digits\n(%d^%d = %d >= 256); the message ends with a zero byte\n",
+                base, width, base, width, base ** width)
+    lines = digit_table(STEGO_NAME, base)
+    logger.info("%s\n  ...\n%s\n", "\n".join(lines[:8]), "\n".join(lines[-3:]))
+    stego = ts.embed("spaces", VARIANT_CONTAINER, STEGO_NAME, base=base)
+    words = re.findall(r"[^·]+·*", stego.replace(" ", "·"))
+    lines, line = [], ""
+    for word in words[:40]:
+        if len(line) + len(word) > 94:
+            lines.append("  " + line)
+            line = ""
+        line += word
+    logger.info("Stego text, beginning (· = space):\n%s\n  ...", "\n".join(lines))
+    digits = ts.spaces_extract(stego, base)
+    used = len(ts.message_digits(STEGO_NAME, base)) + width
+    logger.info("Gaps used %d of %d, spaces added %d, text length %d -> %d symbols",
+                used, gaps, len(stego) - len(VARIANT_CONTAINER), len(VARIANT_CONTAINER),
+                len(stego))
+    logger.info("Extracted digits: %s...", ts.format_digits(digits[:4 * width]))
+    logger.info("Extracted message: %s; %s", ts.extract("spaces", stego, base),
+                "correct" if ts.extract("spaces", stego, base) == STEGO_NAME else "WRONG")
+    for wrong in (2, base + 1):
+        if wrong == base or wrong not in ts.BASES:
+            continue
+        try:
+            got = ts.extract("spaces", stego, wrong)
+            logger.info("Read as base %d: %r", wrong, got[:24])
+        except ValueError as error:
+            logger.info("Read as base %d: %s", wrong, error)
+
+    logger.info("\nAll variants on the same container and message:")
+    logger.info("%-6s %-8s %10s %8s %14s %10s", "base", "spaces", "digits/B", "gaps",
+                "added spaces", "capacity")
+    for k in ts.BASES:
+        text = ts.embed("spaces", VARIANT_CONTAINER, STEGO_NAME, base=k)
+        assert ts.extract("spaces", text, k) == STEGO_NAME
+        need = len(ts.message_digits(STEGO_NAME, k)) + ts.digit_width(k)
+        logger.info("%-6d %-8s %10d %8d %14d %9dB", k, f"1..{k}", ts.digit_width(k),
+                    min(need, gaps), len(text) - len(VARIANT_CONTAINER),
+                    ts.capacity_bytes("spaces", VARIANT_CONTAINER, k))
+    logger.info("")
+    if out_dir:
+        (out_dir / f"stego_base{base}.txt").write_text(stego + "\n", encoding="utf-8")
 
 
 # ---------------------------------------------------------------------- text
@@ -357,6 +427,7 @@ def run_lab4(figures: Optional[Path] = None) -> None:
     logger.info("=== Lab 4: steganography ===\n")
     if figures:
         figures.mkdir(parents=True, exist_ok=True)
+    _variant(SPACES_BASE, figures.parent if figures else None)
     _text_methods()
     photo = samples.photo()
     flat = samples.photo(noise=0)

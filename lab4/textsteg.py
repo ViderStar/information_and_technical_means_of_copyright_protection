@@ -1,7 +1,8 @@
 """Text steganography (sections 7.2 and 7.3).
 
 Syntactic methods (the text stays the same, its formatting carries the bits):
-  spaces     one space between words = 0, two spaces = 1
+  spaces     one space between words = 0, two spaces = 1; in the base-k variant
+             of the lab a digit d = 0..k-1 is written as d + 1 spaces
   invisible  ordinary space (code 32) = 1, no-break space (U+00A0, code 255 in
              DOS code page 866, 160 in Windows-1251) = 0
   case       letter case: lower = 0, upper = 1 (the manual's example
@@ -41,6 +42,52 @@ def message_from_bits(bits: Sequence[int]) -> str:
     return data.split(b"\x00", 1)[0].decode(CODEC, errors="replace")
 
 
+BASES = range(2, 7)          # lab variants: binary (1-2 spaces) .. base 6 (1-6 spaces)
+
+
+def digit_width(base: int) -> int:
+    """Digits per Windows-1251 byte: the least w with base^w >= 256."""
+    if base not in BASES:
+        raise ValueError("The base must be 2..6")
+    width = 1
+    while base ** width < 256:
+        width += 1
+    return width
+
+
+def byte_digits(byte: int, base: int) -> List[int]:
+    width = digit_width(base)
+    return [byte // base ** (width - 1 - i) % base for i in range(width)]
+
+
+def message_digits(message: str, base: int) -> List[int]:
+    """Message -> base-k digits, a fixed number of digits per byte (most significant first)."""
+    try:
+        data = message.encode(CODEC)
+    except UnicodeEncodeError:
+        raise ValueError("Text methods code the message in Windows-1251: "
+                         "only Russian and English letters, digits, punctuation") from None
+    return [d for byte in data for d in byte_digits(byte, base)]
+
+
+def message_from_digits(digits: Sequence[int], base: int) -> str:
+    width = digit_width(base)
+    data = bytearray()
+    for i in range(0, len(digits) - width + 1, width):
+        value = 0
+        for d in digits[i:i + width]:
+            value = value * base + d
+        if value > 255:
+            raise ValueError(f"Digits {format_digits(digits[i:i + width])} give {value} > 255: "
+                             f"wrong base or no hidden message")
+        data.append(value)
+    return bytes(data).split(b"\x00", 1)[0].decode(CODEC, errors="replace")
+
+
+def format_digits(digits: Sequence[int]) -> str:
+    return "".join(map(str, digits))
+
+
 def _fits(bits: Sequence[int], room: int, unit: str) -> None:
     if len(bits) > room:
         raise ValueError(f"The message needs {len(bits)} bits, the container holds "
@@ -60,20 +107,34 @@ def spaces_capacity(container: str) -> int:
     return len(_gaps(container))
 
 
-def spaces_embed(container: str, bits: Sequence[int]) -> str:
+def spaces_embed(container: str, digits: Sequence[int], base: int = 2) -> str:
+    """Digit d of the message replaces the i-th gap with d + 1 spaces; the gaps
+    after the message keep one space (digit 0)."""
     gaps = _gaps(container)
-    _fits(bits, len(gaps), "gaps between words")
+    if len(digits) > len(gaps):
+        raise ValueError(f"The message needs {len(digits)} gaps, the container has "
+                         f"{len(gaps)}: at most {len(gaps) // digit_width(base)} bytes "
+                         f"in base {base}")
+    if any(not 0 <= d < base for d in digits):
+        raise ValueError(f"Digits of base {base} must be 0..{base - 1}")
     out, last = [], 0
     for i, gap in enumerate(gaps):
         out.append(container[last:gap.start()])
-        out.append("  " if i < len(bits) and bits[i] else " ")
+        out.append(" " * (digits[i] + 1 if i < len(digits) else 1))
         last = gap.end()
     out.append(container[last:])
     return "".join(out)
 
 
-def spaces_extract(text: str) -> List[int]:
-    return [1 if len(gap.group()) >= 2 else 0 for gap in _gaps(text)]
+def spaces_extract(text: str, base: int = 2) -> List[int]:
+    digits = []
+    for gap in _gaps(text):
+        count = len(gap.group())
+        if count > base:
+            raise ValueError(f"{count} spaces in a row: more than base {base} allows "
+                             f"(1..{base}), wrong base")
+        digits.append(count - 1)
+    return digits
 
 
 # ---------------------------------------------------------------------- invisible
@@ -307,12 +368,16 @@ def mimicry_extract(text: str, grammar: Dict[str, Tuple[str, str]] = GRAMMAR,
 METHODS = ("spaces", "invisible", "case", "synonyms", "mixed", "mimicry")
 
 
-def embed(method: str, container: str, message: str, seed: Optional[str] = None) -> str:
+def embed(method: str, container: str, message: str, seed: Optional[str] = None,
+          base: int = 2) -> str:
+    if method == "spaces":
+        digits = message_digits(message, base)
+        if len(digits) + digit_width(base) <= len(_gaps(container)):
+            digits += [0] * digit_width(base)          # terminator: zero byte
+        return spaces_embed(container, digits, base)
     bits = message_bits(message)
     if len(bits) + 8 <= capacity(method, container):
         bits += [0] * 8          # terminator: the receiver stops at the zero byte
-    if method == "spaces":
-        return spaces_embed(container, bits)
     if method == "invisible":
         return invisible_embed(container, bits)
     if method == "case":
@@ -324,9 +389,10 @@ def embed(method: str, container: str, message: str, seed: Optional[str] = None)
     raise ValueError(f"Unknown method {method}")
 
 
-def extract_bits(method: str, text: str) -> List[int]:
+def extract_bits(method: str, text: str, base: int = 2) -> List[int]:
+    """Bits, or base-k digits for the spaces method."""
     if method == "spaces":
-        return spaces_extract(text)
+        return spaces_extract(text, base)
     if method == "invisible":
         return invisible_extract(text)
     if method == "case":
@@ -338,12 +404,22 @@ def extract_bits(method: str, text: str) -> List[int]:
     raise ValueError(f"Unknown method {method}")
 
 
-def extract(method: str, text: str) -> str:
+def extract(method: str, text: str, base: int = 2) -> str:
+    if method == "spaces":
+        return message_from_digits(spaces_extract(text, base), base)
     return message_from_bits(extract_bits(method, text))
 
 
+def capacity_bytes(method: str, container: str, base: int = 2) -> float:
+    """Message bytes (Windows-1251 symbols) that fit (mimicry: unlimited)."""
+    if method == "spaces":
+        return spaces_capacity(container) // digit_width(base)
+    return capacity(method, container) // 8
+
+
 def capacity(method: str, container: str) -> int:
-    """Bits the container can carry (mimicry: unlimited, it writes its own text)."""
+    """Bits the container can carry (spaces: base-2 digits; mimicry: unlimited,
+    it writes its own text)."""
     if method in ("spaces", "invisible"):
         return spaces_capacity(container)
     if method == "case":

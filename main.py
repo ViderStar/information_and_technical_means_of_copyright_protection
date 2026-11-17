@@ -13,7 +13,7 @@ from pathlib import Path
 from configs.cfg import (BPCS_ALPHA, BPCS_PLANES, CAESAR_KEY, CAESAR_MUL, COLUMN_KEY,
                          COLUMN_KEY2, CPT_BLOCK, CPT_R, FENCE_KEY, GRILLE_KEY, GROUP_SIZE,
                          HASH_H0, LSB_DEPTH, PLAYFAIR_KEY, RSA_E, RSA_P, RSA_Q, SIGN_E,
-                         SIGN_P, SIGN_Q, VIGENERE_KEY, VIGENERE_MODE)
+                         SIGN_P, SIGN_Q, SPACES_BASE, VIGENERE_KEY, VIGENERE_MODE)
 from helpers.text import group, normalize
 from lab1 import caesar, columnar, fence, grille, playfair, vigenere
 from lab1.runner import run_lab1
@@ -139,9 +139,13 @@ def build_parser() -> argparse.ArgumentParser:
     text_cmd.add_argument("-s", "--scheme", choices=textsteg.METHODS, default="spaces",
                           help="method; mixed = synonyms with the mixed radix "
                                "(default: %(default)s)")
+    text_cmd.add_argument("-b", "--base", type=int, choices=list(textsteg.BASES),
+                          default=SPACES_BASE,
+                          help="spaces: number system, digit d = d + 1 spaces "
+                               "(default: %(default)s)")
     text_cmd.add_argument("-c", "--container",
-                          help="container text file (embed, capacity); "
-                               "the stego text file for extract")
+                          help="container text file (embed, capacity; default for spaces: "
+                               "lab4/container.txt); the stego text file for extract")
     text_cmd.add_argument("-t", "--text", help="message (read from stdin if omitted)")
 
     sample_cmd = methods.add_parser("sample", help="lab 4: write a test container image")
@@ -295,18 +299,22 @@ def run_stego(args: argparse.Namespace) -> None:
         return
 
     if args.method == "text":
+        if args.container is None and args.scheme == "spaces" and args.mode != "extract":
+            args.container = str(Path(__file__).with_name("lab4") / "container.txt")
         if args.container is None and args.scheme != "mimicry":
             raise ValueError("-c is required: the container (or stego) text file")
         container = Path(args.container).read_text(encoding="utf-8") if args.container else ""
+        if args.scheme == "spaces":
+            container = container.rstrip("\n")
         if args.mode == "capacity":
-            bits = textsteg.capacity(args.scheme, container)
-            print(f"{bits} bits = {bits // 8} bytes (Windows-1251 symbols)")
+            room = textsteg.capacity_bytes(args.scheme, container, args.base)
+            print(f"{room} bytes (Windows-1251 symbols)"
+                  + (f", base {args.base}" if args.scheme == "spaces" else ""))
         elif args.mode == "embed":
-            sys.stdout.write(textsteg.embed(args.scheme, container, message(args)))
-            if args.scheme == "mimicry":
-                sys.stdout.write("\n")
+            sys.stdout.write(textsteg.embed(args.scheme, container, message(args),
+                                            base=args.base) + "\n")
         else:
-            print(textsteg.extract(args.scheme, container))
+            print(textsteg.extract(args.scheme, container, args.base))
         return
 
     image = imageio.load(args.input)

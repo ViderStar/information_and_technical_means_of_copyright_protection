@@ -7,13 +7,14 @@ import tkinter as tk
 from tkinter import filedialog, ttk
 from typing import Dict, List, Optional, Tuple
 
-from configs.cfg import BPCS_ALPHA, BPCS_PLANES, CPT_BLOCK, CPT_R, LSB_DEPTH
+from configs.cfg import (BPCS_ALPHA, BPCS_PLANES, CPT_BLOCK, CPT_R, LSB_DEPTH, SPACES_BASE,
+                         STEGO_NAME)
 from lab2.gui import LANGUAGES, MONO
 from lab4 import bpcs, cpt, imageio, lsb, samples
 from lab4 import textsteg as ts
 from lab4.bits import format_bits, payload
 from lab4.imageio import Image
-from lab4.runner import CONTAINER, CPT_IMAGE, CPT_K, CPT_W, DEMO_MESSAGE
+from lab4.runner import CPT_IMAGE, CPT_K, CPT_W, DEMO_MESSAGE, VARIANT_CONTAINER, digit_table
 
 PREVIEW = 300                      # longest side of an image preview, pixels
 CHANGED = (220, 30, 30)
@@ -27,7 +28,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "frame.explain": "How it works",
         "label.method": "Method:",
         "label.container": "Container text",
-        "label.stego": "Stego text (· marks a no-break space)",
+        "label.stego": "Stego text (· marks a space)",
+        "label.base": "Base (spaces):",
         "label.message": "Message:",
         "label.key": "Stego key:",
         "label.bits": "LSBs:",
@@ -49,6 +51,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "btn.example": "Manual example",
         "status.ready": "Choose a tab: text, colour image or binary image",
         "status.embedded": "embedded {bits} bits; {extra}",
+        "status.digits": "embedded {count} base-{base} digits into {count} gaps",
         "status.extracted": "extracted: {message}",
         "status.loaded": "{name}: {w}x{h}, capacity {room} bytes",
         "status.saved": "saved {name}",
@@ -56,6 +59,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "status.nostego": "Embed a message first",
         "status.error": "Error: {message}",
         "status.number": "{name} must be a number",
+        "explain.spaces": "Spaces, base {base}: digit d = d + 1 spaces, {width} digits per "
+                          "Windows-1251 byte;\ncapacity {room} bytes, used {count} gaps "
+                          "(with the zero byte), added {added} spaces",
         "explain.text": "Method: {method}, capacity {room} bits\n"
                         "Message in Windows-1251 + zero byte ({count} bits):\n{bits}",
         "explain.lsb": "LSB: {depth} lowest bit(s) of every R, G, B sample, key: {skey}\n"
@@ -78,7 +84,8 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "frame.explain": "Как это работает",
         "label.method": "Метод:",
         "label.container": "Текст-контейнер",
-        "label.stego": "Стеготекст (· - неразрывный пробел)",
+        "label.stego": "Стеготекст (· - пробел)",
+        "label.base": "Основание (пробелы):",
         "label.message": "Сообщение:",
         "label.key": "Стегоключ:",
         "label.bits": "Младших бит:",
@@ -100,6 +107,7 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "btn.example": "Пример пособия",
         "status.ready": "Выберите вкладку: текст, цветное или бинарное изображение",
         "status.embedded": "встроено бит: {bits}; {extra}",
+        "status.digits": "встроено {count} цифр {base}-ичной системы в {count} промежутков",
         "status.extracted": "извлечено: {message}",
         "status.loaded": "{name}: {w}x{h}, ёмкость {room} байт",
         "status.saved": "сохранено: {name}",
@@ -107,6 +115,9 @@ STRINGS: Dict[str, Dict[str, str]] = {
         "status.nostego": "Сначала встройте сообщение",
         "status.error": "Ошибка: {message}",
         "status.number": "{name} должно быть числом",
+        "explain.spaces": "Пробелы, основание {base}: цифра d = d + 1 пробелов, {width} цифр "
+                          "на байт Windows-1251;\nёмкость {room} байт, занято промежутков "
+                          "{count} (с нулевым байтом), добавлено пробелов {added}",
         "explain.text": "Метод: {method}, ёмкость {room} бит\n"
                         "Сообщение в Windows-1251 + нулевой байт ({count} бит):\n{bits}",
         "explain.lsb": "LSB: {depth} младш. бит каждой составляющей R, G, B, ключ: {skey}\n"
@@ -244,20 +255,45 @@ class App(tk.Tk):
         self.tr(ttk.Label(frame), "label.method").grid(row=0, column=0, sticky="w")
         self.text_method = ttk.Combobox(frame, state="readonly", width=32)
         self.text_method.grid(row=0, column=1, sticky="w", pady=4)
-        self.text_message = self._message_row(frame, 1, "Hi")
+        self.text_method.bind("<<ComboboxSelected>>", lambda _e: self.stego_text.delete("1.0", "end"))
+        self.tr(ttk.Label(frame), "label.base").grid(row=0, column=3, sticky="e")
+        self.base = tk.StringVar(value=str(SPACES_BASE))
+        ttk.Spinbox(frame, from_=2, to=6, width=4, textvariable=self.base, font=MONO,
+                    state="readonly").grid(row=0, column=4, sticky="w", padx=4)
+        self.text_message = self._message_row(frame, 1, STEGO_NAME)
 
         self.tr(ttk.Label(frame), "label.container").grid(row=2, column=0, sticky="w")
         self.tr(ttk.Label(frame), "label.stego").grid(row=2, column=3, sticky="w")
         self.container = tk.Text(frame, height=9, wrap="word", font=MONO, width=40)
         self.container.grid(row=3, column=0, columnspan=2, sticky="nsew")
-        self.container.insert("1.0", CONTAINER)
+        self.container.insert("1.0", VARIANT_CONTAINER)
         self.stego_text = tk.Text(frame, height=9, wrap="word", font=MONO, width=40)
         self.stego_text.grid(row=3, column=3, columnspan=6, sticky="nsew")
         buttons = ttk.Frame(frame, padding=8)
         buttons.grid(row=3, column=2)
         self.tr(ttk.Button(buttons, width=14, command=self._text_embed), "btn.embed").pack(pady=3)
         self.tr(ttk.Button(buttons, width=14, command=self._text_extract), "btn.extract").pack(pady=3)
+        self.tr(ttk.Button(buttons, width=14, command=self._text_save), "btn.save").pack(pady=3)
         return frame
+
+    def _shown(self, text: str) -> str:
+        """Spaces (or no-break spaces) as dots, so the hidden digits are visible."""
+        return text.replace(" " if self._method() == "spaces" else ts.NBSP, "·")
+
+    def _real(self, text: str) -> str:
+        return text.replace("·", " " if self._method() == "spaces" else ts.NBSP)
+
+    def _text_save(self) -> None:
+        text = self._real(self.stego_text.get("1.0", "end").rstrip("\n"))
+        if not text:
+            self.status.set(self.t("status.nostego"))
+            return
+        path = filedialog.asksaveasfilename(defaultextension=".txt",
+                                            filetypes=[("Text", "*.txt")])
+        if path:
+            with open(path, "w", encoding="utf-8") as out:
+                out.write(text)
+            self.status.set(self.t("status.saved", name=path))
 
     def _method(self) -> str:
         return list(TEXT_METHODS)[self.text_method.current()]
@@ -265,13 +301,25 @@ class App(tk.Tk):
     def _text_embed(self) -> None:
         method = self._method()
         container = self.container.get("1.0", "end").rstrip("\n")
+        base = int(self.base.get())
         try:
-            stego = ts.embed(method, container, self.text_message.get(), seed="gui")
+            stego = ts.embed(method, container, self.text_message.get(), seed="gui", base=base)
         except ValueError as error:
             self.fail(error)
             return
         self.stego_text.delete("1.0", "end")
-        self.stego_text.insert("1.0", stego.replace(ts.NBSP, "·"))
+        self.stego_text.insert("1.0", self._shown(stego))
+        if method == "spaces":
+            digits = ts.spaces_extract(stego, base)
+            used = len(ts.message_digits(self.text_message.get(), base))
+            used = min(len(digits), used + ts.digit_width(base))
+            self.set_explain("\n".join([
+                self.t("explain.spaces", base=base, width=ts.digit_width(base),
+                       room=ts.capacity_bytes(method, container, base), count=used,
+                       added=len(stego) - len(container)), "",
+                *digit_table(self.text_message.get(), base)]))
+            self.status.set(self.t("status.digits", count=used, base=base))
+            return
         bits = ts.message_bits(self.text_message.get())
         room = ts.capacity(method, container)
         if len(bits) + 8 <= room:
@@ -282,10 +330,12 @@ class App(tk.Tk):
                                extra=f"{room} bits max" if room != float("inf") else ""))
 
     def _text_extract(self) -> None:
-        text = self.stego_text.get("1.0", "end").rstrip("\n").replace("·", ts.NBSP)
+        text = self._real(self.stego_text.get("1.0", "end").rstrip("\n"))
+        base = int(self.base.get())
         try:
-            bits = ts.extract_bits(self._method(), text)
-            message = ts.message_from_bits(bits)
+            bits = ts.extract_bits(self._method(), text, base)
+            message = (ts.message_from_digits(bits, base) if self._method() == "spaces"
+                       else ts.message_from_bits(bits))
         except ValueError as error:
             self.fail(error)
             return

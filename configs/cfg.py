@@ -38,3 +38,9 @@ BPCS_ALPHA = float(os.getenv("BPCS_ALPHA", "0.3"))      # complexity threshold a
 BPCS_PLANES = int(os.getenv("BPCS_PLANES", "4"))        # lowest bit planes used
 CPT_BLOCK = os.getenv("CPT_BLOCK", "4x4")               # block m x n
 CPT_R = int(os.getenv("CPT_R", "4"))                    # bits per block, r <= log2(mn + 1)
+
+# Lab 4 variant: the full name is hidden in a text file by the spaces method in base
+# SPACES_BASE (digit d = d + 1 spaces). Binary and base 4 are taken in the group,
+# base 3 (1-3 spaces) was free.
+SPACES_BASE = int(os.getenv("SPACES_BASE", "3"))
+STEGO_NAME = os.getenv("STEGO_NAME", "Лебедевич Артем Владимирович")

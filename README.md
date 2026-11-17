@@ -40,6 +40,8 @@ the distance-matrix modification of CPT for binary images. All numeric examples 
 chapter 7 are reproduced exactly (кОмПьютер, the CPT sets S1..S7 and the flipped bit
 (2,4), the mimicry sentence for 1010, alpha and beta of the reference blocks). PNG and
 BMP are read and written with the standard library only.
+Variant: the full name hidden in a text file by spaces in base 3 (a digit d is d + 1
+spaces, 1-3 spaces per gap); any base 2..6 via `text -b`.
 Report: [PDF](report_lab4/main.pdf), [source](report_lab4/main.tex).
 
 ## Quick start
